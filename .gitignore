@@ -1,0 +1,34 @@
+# Environment / secrets
+.env
+*.env
+!.env.example
+
+# Python
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+.vite/
+**/.vite/
+
+# Generated/local data
+*.log
+.DS_Store
+Thumbs.db
+
+# Local caches
+backend/cache/*
+**/cache/*
