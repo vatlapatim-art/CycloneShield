@@ -1,9 +1,9 @@
-import os
-
-from services.earth_engine import build_flood_candidate
+from services.earth_engine import build_flood_candidate, ensure_ee
 
 
-PROJECT_ID = os.getenv("EARTH_ENGINE_PROJECT", "cycloneshield-ai-510103")
+# ============================================================
+# REAL FLOOD / INFRASTRUCTURE EXPOSURE SERVICE
+# ============================================================
 
 # Keep the exposure service self-contained. These are the same real-data
 # study-region bounds used by the FastAPI endpoints in main.py.
@@ -11,20 +11,6 @@ FLOOD_WEST = 87.5
 FLOOD_SOUTH = 21.5
 FLOOD_EAST = 89.0
 FLOOD_NORTH = 23.0
-
-
-def ensure_ee():
-    """Initialize Earth Engine only when the flood mask is actually requested."""
-    import ee
-    try:
-        ee.Initialize(project=PROJECT_ID)
-    except Exception:
-        # A second initialize can be harmless in environments where EE is already ready.
-        try:
-            ee.data.getAssetRoots()
-        except Exception:
-            raise
-    return ee
 
 
 # ============================================================
@@ -64,6 +50,7 @@ def build_shared_flood_candidate():
         "2020-05-20T00:00:00",
         "2020-05-24T00:00:00",
     )
+
     return built["mask"]
 
 
@@ -100,7 +87,6 @@ def extract_coordinates(feature):
     geometry = feature.get("geometry")
 
     if isinstance(geometry, dict):
-
         coordinates = geometry.get("coordinates")
 
         if (
@@ -140,20 +126,13 @@ def extract_category(feature):
         category = feature.get("type")
 
     if category is None:
-
         properties = feature.get("properties")
 
         if isinstance(properties, dict):
-
-            category = properties.get(
-                "category"
-            )
+            category = properties.get("category")
 
             if category is None:
-
-                category = properties.get(
-                    "type"
-                )
+                category = properties.get("type")
 
     if category is None:
         return None
@@ -176,7 +155,6 @@ def extract_name(feature):
     name = feature.get("name")
 
     if name is None:
-
         properties = feature.get("properties")
 
         if isinstance(properties, dict):
@@ -196,7 +174,6 @@ def extract_name(feature):
 # ============================================================
 
 def calculate_real_exposure(infrastructure):
-    ee = ensure_ee()
     """
     Calculate exposure of real OSM critical infrastructure
     to the real satellite-derived flood candidate.
@@ -215,14 +192,18 @@ def calculate_real_exposure(infrastructure):
     data is generated.
     """
 
-    if not isinstance(infrastructure, dict):
-        raise ValueError(
-            "Infrastructure data must be a dictionary."
-        )
+    # Reuse the central Earth Engine authentication/initialization
+    # used by services.earth_engine.
+    ee = ensure_ee()
 
     # --------------------------------------------------------
     # GET FEATURES
     # --------------------------------------------------------
+
+    if not isinstance(infrastructure, dict):
+        raise ValueError(
+            "Infrastructure data must be a dictionary."
+        )
 
     features = infrastructure.get("features")
 
@@ -256,7 +237,6 @@ def calculate_real_exposure(infrastructure):
             continue
 
         # Restrict to actual flood-analysis region.
-
         if not (
             FLOOD_WEST <= lon <= FLOOD_EAST
             and
@@ -284,7 +264,6 @@ def calculate_real_exposure(infrastructure):
     # --------------------------------------------------------
 
     if not critical_features:
-
         return {
             "total_critical": 0,
             "direct_exposed_count": 0,
@@ -455,7 +434,6 @@ def calculate_real_exposure(infrastructure):
         )
 
         try:
-
             direct_value = float(
                 direct_value
                 if direct_value is not None
@@ -463,11 +441,9 @@ def calculate_real_exposure(infrastructure):
             )
 
         except (TypeError, ValueError):
-
             direct_value = 0.0
 
         try:
-
             nearby_value = float(
                 nearby_value
                 if nearby_value is not None
@@ -475,7 +451,6 @@ def calculate_real_exposure(infrastructure):
             )
 
         except (TypeError, ValueError):
-
             nearby_value = 0.0
 
         is_direct_exposed = (
