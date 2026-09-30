@@ -1,19 +1,49 @@
+import json
 import os
 
+import ee
 
-PROJECT_ID = os.getenv("EARTH_ENGINE_PROJECT", "cycloneshield-ai-510103")
+
+PROJECT_ID = os.getenv(
+    "EARTH_ENGINE_PROJECT",
+    "cycloneshield-ai-510103",
+)
+
 # Five times the previous 100M maxPixels budget, as requested.
-EE_MAX_PIXELS = 1000_000_000
+EE_MAX_PIXELS = 1_000_000_000
+
 _ee = None
 
 
 def ensure_ee():
-    """Lazily initialize Earth Engine only when a real EE operation is requested."""
+    """Lazy-initialize Earth Engine with the Render service-account credentials."""
     global _ee
-    if _ee is None:
-        import ee
+
+    if _ee is not None:
+        return _ee
+
+    credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+    if credentials_file and os.path.isfile(credentials_file):
+        with open(credentials_file, "r", encoding="utf-8") as f:
+            service_account_info = json.load(f)
+
+        service_account = service_account_info["client_email"]
+
+        credentials = ee.ServiceAccountCredentials(
+            service_account,
+            credentials_file,
+        )
+
+        ee.Initialize(
+            credentials,
+            project=PROJECT_ID,
+        )
+    else:
+        # Local-development fallback.
         ee.Initialize(project=PROJECT_ID)
-        _ee = ee
+
+    _ee = ee
     return _ee
 
 
